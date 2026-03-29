@@ -24,6 +24,7 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
   final _apiClient = ApiClient();
   Application? _application;
   bool _isLoading = true;
+  bool _isChecking = false;
 
   @override
   void initState() {
@@ -43,6 +44,187 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _checkRiskReadiness() async {
+    setState(() => _isChecking = true);
+
+    try {
+      final riskData = await _apiClient.getRiskReadiness(widget.applicationId);
+
+      if (riskData['overall_score'] > 20) {
+        _showRiskWarning(riskData);
+      } else {
+        // Proceed to submit screen
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => NewApplicationStep7(
+                applicationId: widget.applicationId,
+                licenseType: widget.licenseType,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      _showError('Failed to check readiness. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isChecking = false);
+    }
+  }
+
+  void _showRiskWarning(Map<String, dynamic> riskData) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber, color: AppColors.warning),
+            const SizedBox(width: 8),
+            const Text('Risk Readiness Issues'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Risk Score: ${riskData['overall_score']}%',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      riskData['overall_score'] > 50
+                          ? 'High Risk'
+                          : 'Medium Risk',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (riskData['missing_fields'] != null &&
+                  (riskData['missing_fields'] as List).isNotEmpty) ...[
+                Text(
+                  'Missing Required Fields:',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...(riskData['missing_fields'] as List).map((field) => Padding(
+                      padding: const EdgeInsets.only(left: 16, bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 16, color: AppColors.error),
+                          const SizedBox(width: 8),
+                          Text(field),
+                        ],
+                      ),
+                    )),
+                const SizedBox(height: 16),
+              ],
+              if (riskData['missing_documents'] != null &&
+                  (riskData['missing_documents'] as List).isNotEmpty) ...[
+                Text(
+                  'Missing Required Documents:',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...(riskData['missing_documents'] as List).map((doc) => Padding(
+                      padding: const EdgeInsets.only(left: 16, bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.attach_file,
+                              size: 16, color: AppColors.error),
+                          const SizedBox(width: 8),
+                          Text(doc),
+                        ],
+                      ),
+                    )),
+                const SizedBox(height: 16),
+              ],
+              if (riskData['incomplete_zoning'] == true) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_off, color: AppColors.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Zoning compliance not verified',
+                          style: GoogleFonts.inter(
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Go Back & Fix'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Proceed anyway
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NewApplicationStep7(
+                    applicationId: widget.applicationId,
+                    licenseType: widget.licenseType,
+                  ),
+                ),
+              );
+            },
+            child: const Text('Continue Anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   @override
@@ -109,19 +291,9 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
                         ),
                         const SizedBox(height: 32),
                         LoadingButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => NewApplicationStep7(
-                                  applicationId: widget.applicationId,
-                                  licenseType: widget.licenseType,
-                                ),
-                              ),
-                            );
-                          },
-                          isLoading: false,
-                          text: 'Proceed to Submit',
+                          onPressed: _checkRiskReadiness,
+                          isLoading: _isChecking,
+                          text: 'Check Readiness & Submit',
                         ),
                         const SizedBox(height: 16),
                         TextButton(

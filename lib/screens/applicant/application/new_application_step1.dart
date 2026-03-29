@@ -4,7 +4,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../widgets/common/loading_button.dart';
-import 'new_application_step2.dart';
+import 'pre_qualification_screen.dart'; // Changed from new_application_step2 to pre_qualification_screen
 
 class NewApplicationStep1 extends StatefulWidget {
   const NewApplicationStep1({super.key});
@@ -41,10 +41,11 @@ class _NewApplicationStep1State extends State<NewApplicationStep1> {
       if (response['success'] == true) {
         final applicationId = response['application']['id'];
         if (mounted) {
+          // Navigate to Pre-Qualification Screen (Step 2)
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => NewApplicationStep2(
+              builder: (_) => PreQualificationScreen(
                 applicationId: applicationId,
                 licenseType: _selectedLicenseType!,
               ),

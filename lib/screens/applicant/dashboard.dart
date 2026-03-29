@@ -7,6 +7,7 @@ import '../../widgets/common/status_badge.dart';
 import '../../widgets/common/app_logo.dart';
 import 'application/new_application_step1.dart';
 import 'application_detail.dart';
+import 'compliance_dashboard.dart'; // Import Compliance Dashboard
 
 class ApplicantDashboard extends StatefulWidget {
   const ApplicantDashboard({super.key});
@@ -15,17 +16,27 @@ class ApplicantDashboard extends StatefulWidget {
   State<ApplicantDashboard> createState() => _ApplicantDashboardState();
 }
 
-class _ApplicantDashboardState extends State<ApplicantDashboard> {
+class _ApplicantDashboardState extends State<ApplicantDashboard>
+    with SingleTickerProviderStateMixin {
   final _apiClient = ApiClient();
   List<Application> _applications = [];
   bool _isLoading = true;
   String _filter = 'all';
   String? _userName;
 
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -80,7 +91,18 @@ class _ApplicantDashboardState extends State<ApplicantDashboard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: const Text('StationSync'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.description), text: 'Applications'),
+            Tab(icon: Icon(Icons.verified), text: 'Compliance'),
+          ],
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textHint,
+          indicatorColor: AppColors.primary,
+          indicatorWeight: 3,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -90,150 +112,164 @@ class _ApplicantDashboardState extends State<ApplicantDashboard> {
         ],
       ),
       drawer: _buildDrawer(),
-      body: RefreshIndicator(
-        onRefresh: _loadApplications,
-        child: Column(
-          children: [
-            // Welcome Card
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      _userName?.substring(0, 1).toUpperCase() ?? 'U',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Welcome back,',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        Text(
-                          _userName?.split(' ').first ?? 'Applicant',
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_applications.length} Applications',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.assignment,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Stats Row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  _buildStatCard(
-                    'Total',
-                    _applications.length,
-                    Icons.description,
-                    AppColors.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  _buildStatCard(
-                    'Approved',
-                    _applications.where((a) => a.isApproved).length,
-                    Icons.check_circle,
-                    AppColors.success,
-                  ),
-                  const SizedBox(width: 12),
-                  _buildStatCard(
-                    'Pending',
-                    _applications
-                        .where((a) => a.isSubmitted || a.isUnderReview)
-                        .length,
-                    Icons.pending,
-                    AppColors.warning,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Filter Tabs
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildFilterTabs(),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Applications List
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : filteredApps.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: filteredApps.length,
-                          itemBuilder: (context, index) {
-                            final app = filteredApps[index];
-                            return _buildApplicationCard(app);
-                          },
-                        ),
-            ),
-          ],
-        ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Tab 1: Applications
+          _buildApplicationsTab(filteredApps),
+          // Tab 2: Compliance Dashboard
+          const ComplianceDashboard(),
+        ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const NewApplicationStep1(),
+      floatingActionButton: _tabController.index == 0
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NewApplicationStep1(),
+                  ),
+                ).then((_) => _loadApplications());
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('New Application'),
+              backgroundColor: AppColors.primary,
+            )
+          : null,
+    );
+  }
+
+  Widget _buildApplicationsTab(List<Application> filteredApps) {
+    return RefreshIndicator(
+      onRefresh: _loadApplications,
+      child: Column(
+        children: [
+          // Welcome Card
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(20),
             ),
-          ).then((_) => _loadApplications());
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Application'),
-        backgroundColor: AppColors.primary,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    _userName?.substring(0, 1).toUpperCase() ?? 'U',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome back,',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      Text(
+                        _userName?.split(' ').first ?? 'Applicant',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_applications.length} Applications',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.assignment,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Stats Row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                _buildStatCard(
+                  'Total',
+                  _applications.length,
+                  Icons.description,
+                  AppColors.primary,
+                ),
+                const SizedBox(width: 12),
+                _buildStatCard(
+                  'Approved',
+                  _applications.where((a) => a.isApproved).length,
+                  Icons.check_circle,
+                  AppColors.success,
+                ),
+                const SizedBox(width: 12),
+                _buildStatCard(
+                  'Pending',
+                  _applications
+                      .where((a) => a.isSubmitted || a.isUnderReview)
+                      .length,
+                  Icons.pending,
+                  AppColors.warning,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Filter Tabs
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildFilterTabs(),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Applications List
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredApps.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: filteredApps.length,
+                        itemBuilder: (context, index) {
+                          final app = filteredApps[index];
+                          return _buildApplicationCard(app);
+                        },
+                      ),
+          ),
+        ],
       ),
     );
   }

@@ -146,6 +146,66 @@ class ApiClient {
     await _dio.delete('/api/documents/$id');
   }
 
+  // Pre-qualify application
+  Future<void> preQualify(
+      String applicationId, Map<String, dynamic> preQualData) async {
+    await _dio.post('/api/applications/$applicationId/pre-qualify', data: {
+      'pre_qualification_data': preQualData,
+    });
+  }
+
+// Get risk readiness
+  Future<Map<String, dynamic>> getRiskReadiness(String applicationId) async {
+    final response =
+        await _dio.post('/api/applications/$applicationId/risk-readiness');
+    return response.data;
+  }
+
+// Get sites list
+  Future<List<dynamic>> getSites() async {
+    final response = await _dio.get('/api/sites');
+    return response.data['sites'];
+  }
+
+// Get site details
+  Future<Map<String, dynamic>> getSite(String siteId) async {
+    final response = await _dio.get('/api/sites/$siteId');
+    return response.data;
+  }
+
+// Create inspection
+  Future<Map<String, dynamic>> createInspection(
+      Map<String, dynamic> data) async {
+    final response = await _dio.post('/api/inspections', data: data);
+    return response.data;
+  }
+
+// Create renewal
+  Future<Map<String, dynamic>> createRenewal(String siteId) async {
+    final response =
+        await _dio.post('/api/renewals', data: {'site_id': siteId});
+    return response.data;
+  }
+
+// Get expiring licenses
+  Future<List<dynamic>> getExpiringLicenses() async {
+    final response = await _dio.get('/api/compliance/expiring');
+    return response.data['expiring'];
+  }
+
+// Get pending renewals (officer)
+  Future<List<dynamic>> getPendingRenewals() async {
+    final response = await _dio.get('/api/renewals/pending');
+    return response.data['renewals'];
+  }
+
+// Approve renewal (officer)
+  Future<void> approveRenewal(String renewalId, String newExpiryDate) async {
+    await _dio.post('/api/renewals/$renewalId/approve', data: {
+      'new_expiry_date': newExpiryDate,
+    });
+  }
+
   // Officer endpoints
   Future<List<dynamic>> getPendingApplications() async {
     final response = await _dio.get('/api/officer/pending');
