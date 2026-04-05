@@ -58,6 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
           }
         }
       } catch (e) {
+        // Token might be invalid, go to login
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -66,6 +67,7 @@ class _SplashScreenState extends State<SplashScreen> {
         }
       }
     } else {
+      // No token found, go to login
       if (mounted) {
         Navigator.pushReplacement(
           context,

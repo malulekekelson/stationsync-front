@@ -25,6 +25,11 @@ import 'screens/admin/create_officer_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Clear token on app start to force fresh login
+  // This ensures if app was killed, user must login again
+  await ApiClient().clearTokenOnStart();
+
   await ApiClient().init();
   runApp(const StationSyncApp());
 }

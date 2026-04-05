@@ -43,6 +43,12 @@ class ApiClient {
     ));
   }
 
+  // NEW: Clear token on app start to force fresh login
+  Future<void> clearTokenOnStart() async {
+    await _storage.delete(key: AppConstants.storageTokenKey);
+    await _storage.delete(key: AppConstants.storageUserKey);
+  }
+
   Future<void> saveToken(String token) async {
     await _storage.write(key: AppConstants.storageTokenKey, value: token);
   }
@@ -53,6 +59,7 @@ class ApiClient {
 
   Future<void> clearToken() async {
     await _storage.delete(key: AppConstants.storageTokenKey);
+    await _storage.delete(key: AppConstants.storageUserKey);
   }
 
   // Auth endpoints
@@ -65,6 +72,13 @@ class ApiClient {
     final response = await _dio.post('/api/auth/login', data: data);
     if (response.data['success'] == true) {
       await saveToken(response.data['token']);
+      // Save user data for quick access
+      if (response.data['user'] != null) {
+        await _storage.write(
+          key: AppConstants.storageUserKey,
+          value: response.data['user'].toString(),
+        );
+      }
     }
     return response.data;
   }
