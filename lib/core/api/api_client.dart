@@ -128,7 +128,7 @@ class ApiClient {
     return response.data;
   }
 
-  // NEW: Issue license number
+  // Issue license number
   Future<Map<String, dynamic>> issueLicense(
       String applicationId, String licenseNumber,
       {String? expiryDate}) async {
@@ -163,7 +163,7 @@ class ApiClient {
     return response.data;
   }
 
-  // NEW: Download document (returns file bytes)
+  // Download document (returns file bytes)
   Future<List<int>> downloadDocument(String documentId) async {
     final response = await _dio.get(
       '/api/documents/download/$documentId',
@@ -216,20 +216,20 @@ class ApiClient {
     return response.data;
   }
 
-  // NEW: Schedule inspection
+  // Schedule inspection
   Future<Map<String, dynamic>> scheduleInspection(
       Map<String, dynamic> data) async {
     final response = await _dio.post('/api/inspections/schedule', data: data);
     return response.data;
   }
 
-  // NEW: Get scheduled inspections
+  // Get scheduled inspections
   Future<List<dynamic>> getScheduledInspections() async {
     final response = await _dio.get('/api/inspections/scheduled');
     return response.data['schedules'];
   }
 
-  // NEW: Update schedule status
+  // Update schedule status
   Future<void> updateScheduleStatus(String scheduleId, String status,
       {String? assignedTo}) async {
     await _dio.put('/api/inspections/schedule/$scheduleId/confirm', data: {
@@ -238,7 +238,7 @@ class ApiClient {
     });
   }
 
-  // NEW: Request additional documents
+  // Request additional documents
   Future<Map<String, dynamic>> requestDocuments(
       String applicationId, String message, List<String> documentTypes,
       {int deadlineDays = 7}) async {
@@ -251,14 +251,14 @@ class ApiClient {
     return response.data;
   }
 
-  // NEW: Get document requests
+  // Get document requests
   Future<List<dynamic>> getDocumentRequests(String applicationId) async {
     final response =
         await _dio.get('/api/applications/$applicationId/document-requests');
     return response.data['document_requests'];
   }
 
-  // NEW: Notifications
+  // Notifications
   Future<Map<String, dynamic>> getNotifications() async {
     final response = await _dio.get('/api/notifications');
     return response.data;
@@ -339,13 +339,13 @@ class ApiClient {
     return response.data;
   }
 
-// Get review history for current officer
+  // Get review history for current officer
   Future<Map<String, dynamic>> getReviewHistory() async {
     final response = await _dio.get('/api/officer/history');
     return response.data;
   }
 
-// Get all review history (admin only)
+  // Get all review history (admin only)
   Future<Map<String, dynamic>> getAllReviewHistory(
       {String? officerId,
       String? status,

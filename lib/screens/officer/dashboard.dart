@@ -5,7 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/application.dart';
 import '../../widgets/common/status_badge.dart';
 import 'review_application.dart';
-import 'review_history.dart'; // ✅ NEW IMPORT
+import 'review_history.dart';
 
 class OfficerDashboard extends StatefulWidget {
   const OfficerDashboard({super.key});
@@ -71,8 +71,6 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Officer Dashboard'),
-
-        // ✅ UPDATED ACTIONS
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -89,6 +87,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
+            tooltip: 'Logout',
           ),
         ],
       ),
@@ -96,9 +95,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
         onRefresh: _loadApplications,
         child: Column(
           children: [
-            // =========================
             // Stats Card
-            // =========================
             Container(
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(20),
@@ -170,9 +167,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
               ),
             ),
 
-            // =========================
             // Applications List
-            // =========================
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())

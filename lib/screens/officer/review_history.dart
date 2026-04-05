@@ -19,6 +19,7 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
   String _filter = 'all';
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -27,9 +28,14 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
   }
 
   Future<void> _loadHistory() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
       final response = await _apiClient.getReviewHistory();
+
       setState(() {
         _history = (response['history'] as List)
             .map((json) => Application.fromJson(json))
@@ -37,7 +43,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
         _stats = response['stats'] ?? {};
       });
     } catch (e) {
-      // Handle error
+      setState(() {
+        _errorMessage = 'Failed to load review history. Please try again.';
+      });
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -59,70 +67,102 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadHistory,
+            tooltip: 'Refresh',
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Stats Cards
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildStatCard('Total', _stats['total'] ?? 0,
-                          Icons.description, AppColors.primary),
-                      const SizedBox(width: 12),
-                      _buildStatCard('Approved', _stats['approved'] ?? 0,
-                          Icons.check_circle, AppColors.success),
-                      const SizedBox(width: 12),
-                      _buildStatCard('Rejected', _stats['rejected'] ?? 0,
-                          Icons.cancel, AppColors.error),
+                      Icon(Icons.error_outline,
+                          size: 64, color: AppColors.error),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage!,
+                        style:
+                            GoogleFonts.inter(color: AppColors.textSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadHistory,
+                        child: const Text('Try Again'),
+                      ),
                     ],
                   ),
-                ),
+                )
+              : Column(
+                  children: [
+                    // Stats Cards
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          _buildStatCard('Total', _stats['total'] ?? 0,
+                              Icons.description, AppColors.primary),
+                          const SizedBox(width: 12),
+                          _buildStatCard('Approved', _stats['approved'] ?? 0,
+                              Icons.check_circle, AppColors.success),
+                          const SizedBox(width: 12),
+                          _buildStatCard('Rejected', _stats['rejected'] ?? 0,
+                              Icons.cancel, AppColors.error),
+                        ],
+                      ),
+                    ),
 
-                // Filter Tabs
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildFilterTabs(),
-                ),
+                    // Filter Tabs
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildFilterTabs(),
+                    ),
 
-                const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                // History List
-                Expanded(
-                  child: filteredHistory.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.history,
-                                  size: 80, color: AppColors.textHint),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No review history yet',
-                                style: GoogleFonts.inter(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textSecondary,
-                                ),
+                    // History List
+                    Expanded(
+                      child: filteredHistory.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.history,
+                                      size: 80, color: AppColors.textHint),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No review history yet',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Applications you approve or reject will appear here',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      color: AppColors.textHint,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: filteredHistory.length,
-                          itemBuilder: (context, index) {
-                            final app = filteredHistory[index];
-                            return _buildHistoryCard(app);
-                          },
-                        ),
+                            )
+                          : ListView.builder(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: filteredHistory.length,
+                              itemBuilder: (context, index) {
+                                final app = filteredHistory[index];
+                                return _buildHistoryCard(app);
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
     );
   }
 
@@ -135,9 +175,10 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 4),
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 4,
+            ),
           ],
         ),
         child: Column(
@@ -147,13 +188,18 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
             Text(
               count.toString(),
               style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
-            Text(label,
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: AppColors.textSecondary)),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
@@ -185,7 +231,8 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                 color: isSelected ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.textHint),
+                  color: isSelected ? AppColors.primary : AppColors.textHint,
+                ),
               ),
               child: Center(
                 child: Text(
@@ -213,7 +260,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ApplicationDetailScreen(applicationId: app.id),
+              builder: (_) => ApplicationDetailScreen(
+                applicationId: app.id,
+              ),
             ),
           );
         },
@@ -230,7 +279,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                     child: Text(
                       app.licenseType.toUpperCase(),
                       style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.w600),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   StatusBadge(status: app.status),
@@ -240,17 +291,25 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
               Text(
                 app.siteDetails?['site_name'] ?? 'No site name',
                 style: GoogleFonts.inter(
-                    fontSize: 14, color: AppColors.textSecondary),
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(Icons.person, size: 12, color: AppColors.textHint),
                   const SizedBox(width: 4),
-                  Text(
-                    app.companyDetails?['company_name'] ?? 'Unknown',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: AppColors.textHint),
+                  Expanded(
+                    child: Text(
+                      app.companyDetails?['company_name'] ?? 'Unknown Company',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textHint,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Icon(Icons.calendar_today,
@@ -259,7 +318,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                   Text(
                     'Reviewed: ${_formatDate(app.reviewedAt ?? app.createdAt)}',
                     style: GoogleFonts.inter(
-                        fontSize: 12, color: AppColors.textHint),
+                      fontSize: 12,
+                      color: AppColors.textHint,
+                    ),
                   ),
                 ],
               ),
@@ -280,7 +341,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                         child: Text(
                           'Reason: ${app.rejectedReason}',
                           style: GoogleFonts.inter(
-                              fontSize: 11, color: AppColors.error),
+                            fontSize: 11,
+                            color: AppColors.error,
+                          ),
                         ),
                       ),
                     ],
