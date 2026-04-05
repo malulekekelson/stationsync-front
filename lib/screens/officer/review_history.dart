@@ -20,11 +20,28 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
   bool _isLoading = true;
   String _filter = 'all';
   String? _errorMessage;
+  bool _isSuperAdmin = false;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _checkUserRoleAndLoad();
+  }
+
+  Future<void> _checkUserRoleAndLoad() async {
+    try {
+      final userData = await _apiClient.getCurrentUser();
+      final role = userData['user']['role'];
+      setState(() {
+        _isSuperAdmin = role == 'super_admin';
+      });
+      await _loadHistory();
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load user data';
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -34,17 +51,33 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
     });
 
     try {
-      final response = await _apiClient.getReviewHistory();
+      Map<String, dynamic> response;
+
+      if (_isSuperAdmin) {
+        // Super admin uses all-history endpoint
+        response = await _apiClient.getAllReviewHistory();
+      } else {
+        // Regular officer uses history endpoint
+        response = await _apiClient.getReviewHistory();
+      }
+
+      print('Review History Response: $response');
 
       setState(() {
         _history = (response['history'] as List)
             .map((json) => Application.fromJson(json))
             .toList();
-        _stats = response['stats'] ?? {};
+        _stats = response['stats'] ??
+            {
+              'total': _history.length,
+              'approved': _history.where((a) => a.status == 'approved').length,
+              'rejected': _history.where((a) => a.status == 'rejected').length,
+            };
       });
     } catch (e) {
+      print('Error loading history: $e');
       setState(() {
-        _errorMessage = 'Failed to load review history. Please try again.';
+        _errorMessage = 'Failed to load review history: ${e.toString()}';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -253,6 +286,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
   }
 
   Widget _buildHistoryCard(Application app) {
+    // Get officer name from the data if available
+    final officerName = (app as dynamic).officer_name ?? 'Unknown Officer';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -260,9 +296,7 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ApplicationDetailScreen(
-                applicationId: app.id,
-              ),
+              builder: (_) => ApplicationDetailScreen(applicationId: app.id),
             ),
           );
         },
@@ -311,12 +345,30 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 16),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.verified_user,
+                      size: 12, color: AppColors.textHint),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Reviewed by: $officerName',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textHint,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   Icon(Icons.calendar_today,
                       size: 12, color: AppColors.textHint),
                   const SizedBox(width: 4),
                   Text(
-                    'Reviewed: ${_formatDate(app.reviewedAt ?? app.createdAt)}',
+                    _formatDate(app.reviewedAt ?? app.createdAt),
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: AppColors.textHint,
