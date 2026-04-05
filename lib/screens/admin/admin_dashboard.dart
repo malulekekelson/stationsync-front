@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_client.dart';
 import '../../core/constants/app_colors.dart';
 import 'create_officer_screen.dart';
+import 'all_review_history.dart'; // ✅ NEW IMPORT
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -13,6 +14,7 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   final _apiClient = ApiClient();
+
   List<dynamic> _officers = [];
   bool _isLoading = true;
   String? _userName;
@@ -25,11 +27,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+
     try {
       final userData = await _apiClient.getCurrentUser();
+
       setState(() {
         _userName = userData['user']['full_name'];
       });
+
       await _loadOfficers();
     } catch (e) {
       // Handle error
@@ -41,6 +46,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Future<void> _loadOfficers() async {
     try {
       final officers = await _apiClient.listOfficers();
+
       setState(() {
         _officers = officers;
       });
@@ -51,6 +57,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _logout() async {
     await _apiClient.logout();
+
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
     }
@@ -61,7 +68,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
+
+        // ✅ UPDATED ACTIONS
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AllReviewHistoryScreen(),
+                ),
+              );
+            },
+            tooltip: 'Review History',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
@@ -72,7 +93,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         onRefresh: _loadOfficers,
         child: Column(
           children: [
-            // Stats Row
+            // =========================
+            // Stats Card
+            // =========================
             Container(
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(20),
@@ -144,7 +167,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
 
+            // =========================
             // Action Buttons
+            // =========================
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -172,7 +197,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
             const SizedBox(height: 16),
 
+            // =========================
             // Officers List
+            // =========================
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())

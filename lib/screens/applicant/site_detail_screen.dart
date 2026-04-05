@@ -7,6 +7,7 @@ import '../../../models/inspection.dart';
 import '../../../models/compliance_history.dart';
 import '../../../widgets/common/status_badge.dart';
 import 'renewal_workflow.dart';
+import 'schedule_inspection.dart';
 
 class SiteDetailScreen extends StatefulWidget {
   final Site site;
@@ -61,28 +62,36 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // License Status Card
                   _buildLicenseCard(),
                   const SizedBox(height: 16),
-
-                  // Risk Score Card
                   _buildRiskScoreCard(),
                   const SizedBox(height: 16),
-
-                  // Site Details
                   _buildSiteDetailsCard(),
                   const SizedBox(height: 16),
-
-                  // Renewal Action
                   if (widget.site.isExpiringSoon && !widget.site.isExpired)
                     _buildRenewalCard(),
                   const SizedBox(height: 16),
-
-                  // Inspections
+                  if (!widget.site.isExpired)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ScheduleInspectionScreen(
+                                site: widget.site,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.calendar_month),
+                        label: const Text('Schedule Inspection'),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
                   if (_inspections.isNotEmpty) _buildInspectionsCard(),
                   const SizedBox(height: 16),
-
-                  // Compliance History
                   if (_history.isNotEmpty) _buildHistoryCard(),
                 ],
               ),
@@ -120,7 +129,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             _buildInfoRow('License Number', widget.site.licenseNumber),
             _buildInfoRow('Issue Date', widget.site.formattedLicenseIssueDate),
             _buildInfoRow(
-                'Expiry Date', widget.site.formattedLicenseExpiryDate),
+              'Expiry Date',
+              widget.site.formattedLicenseExpiryDate,
+            ),
             _buildInfoRow('Days Remaining', widget.site.daysUntilExpiry),
           ],
         ),
@@ -233,7 +244,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             _buildInfoRow('GPS Coordinates', widget.site.gpsCoordinates),
             if (widget.site.storageCapacity != null)
               _buildInfoRow(
-                  'Storage Capacity', '${widget.site.storageCapacity} liters'),
+                'Storage Capacity',
+                '${widget.site.storageCapacity} liters',
+              ),
           ],
         ),
       ),
@@ -303,24 +316,30 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ),
             ),
             const Divider(),
-            ..._inspections.map((inspection) => ListTile(
-                  leading: Icon(
-                    inspection.statusIcon,
-                    color: inspection.statusColor,
-                  ),
-                  title: Text(
-                    inspection.inspectionType.toUpperCase(),
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: Text(inspection.findings.isNotEmpty
+            ..._inspections.map(
+              (inspection) => ListTile(
+                leading: Icon(
+                  inspection.statusIcon,
+                  color: inspection.statusColor,
+                ),
+                title: Text(
+                  inspection.inspectionType.toUpperCase(),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                ),
+                subtitle: Text(
+                  inspection.findings.isNotEmpty
                       ? inspection.findings
-                      : 'No findings recorded'),
-                  trailing: Text(
-                    inspection.formattedDate,
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: AppColors.textHint),
+                      : 'No findings recorded',
+                ),
+                trailing: Text(
+                  inspection.formattedDate,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.textHint,
                   ),
-                )),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -342,32 +361,36 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ),
             ),
             const Divider(),
-            ..._history.map((event) => ListTile(
-                  leading: Icon(
-                    event.eventIcon,
-                    color: event.eventColor,
-                  ),
-                  title: Text(event.eventTypeDisplay),
-                  subtitle: Text(event.description),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        event.formattedDate,
-                        style: GoogleFonts.inter(
-                            fontSize: 12, color: AppColors.textHint),
+            ..._history.map(
+              (event) => ListTile(
+                leading: Icon(
+                  event.eventIcon,
+                  color: event.eventColor,
+                ),
+                title: Text(event.eventTypeDisplay),
+                subtitle: Text(event.description),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      event.formattedDate,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textHint,
                       ),
-                      if (event.riskScoreChange != 0)
-                        Text(
-                          event.riskScoreDisplay,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: event.riskScoreColor,
-                          ),
+                    ),
+                    if (event.riskScoreChange != 0)
+                      Text(
+                        event.riskScoreDisplay,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: event.riskScoreColor,
                         ),
-                    ],
-                  ),
-                )),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

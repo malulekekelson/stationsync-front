@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/application.dart';
 import '../../widgets/common/status_badge.dart';
 import 'review_application.dart';
+import 'review_history.dart'; // ✅ NEW IMPORT
 
 class OfficerDashboard extends StatefulWidget {
   const OfficerDashboard({super.key});
@@ -15,6 +16,7 @@ class OfficerDashboard extends StatefulWidget {
 
 class _OfficerDashboardState extends State<OfficerDashboard> {
   final _apiClient = ApiClient();
+
   List<Application> _applications = [];
   bool _isLoading = true;
   final String _filter = 'pending';
@@ -28,11 +30,14 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+
     try {
       final userData = await _apiClient.getCurrentUser();
+
       setState(() {
         _userName = userData['user']['full_name'];
       });
+
       await _loadApplications();
     } catch (e) {
       // Handle error
@@ -44,6 +49,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
   Future<void> _loadApplications() async {
     try {
       final apps = await _apiClient.getPendingApplications();
+
       setState(() {
         _applications = apps.map((json) => Application.fromJson(json)).toList();
       });
@@ -54,6 +60,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
 
   Future<void> _logout() async {
     await _apiClient.logout();
+
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
     }
@@ -64,7 +71,21 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Officer Dashboard'),
+
+        // ✅ UPDATED ACTIONS
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ReviewHistoryScreen(),
+                ),
+              );
+            },
+            tooltip: 'Review History',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
@@ -75,7 +96,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
         onRefresh: _loadApplications,
         child: Column(
           children: [
+            // =========================
             // Stats Card
+            // =========================
             Container(
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(20),
@@ -147,7 +170,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
               ),
             ),
 
+            // =========================
             // Applications List
+            // =========================
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -221,7 +246,8 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.business, size: 14, color: AppColors.textHint),
+                  const Icon(Icons.business,
+                      size: 14, color: AppColors.textHint),
                   const SizedBox(width: 4),
                   Text(
                     app.licenseType.toUpperCase(),

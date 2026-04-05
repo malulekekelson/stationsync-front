@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class Application {
   final String id;
@@ -18,6 +19,8 @@ class Application {
   final DateTime? submittedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? licenseNumber;
+  final DateTime? licenseIssuedAt;
 
   Application({
     required this.id,
@@ -36,6 +39,8 @@ class Application {
     this.submittedAt,
     required this.createdAt,
     required this.updatedAt,
+    this.licenseNumber,
+    this.licenseIssuedAt,
   });
 
   factory Application.fromJson(Map<String, dynamic> json) {
@@ -44,10 +49,10 @@ class Application {
       userId: json['user_id'],
       licenseType: json['license_type'],
       companyDetails: json['company_details'] != null
-          ? jsonDecode(json['company_details'])
+          ? _parseJsonSafely(json['company_details'])
           : null,
       siteDetails: json['site_details'] != null
-          ? jsonDecode(json['site_details'])
+          ? _parseJsonSafely(json['site_details'])
           : null,
       status: json['status'],
       siteName: json['site_name'],
@@ -64,7 +69,29 @@ class Application {
           : null,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      licenseNumber: json['license_number'],
+      licenseIssuedAt: json['license_issued_at'] != null
+          ? DateTime.parse(json['license_issued_at'])
+          : null,
     );
+  }
+
+  static Map<String, dynamic>? _parseJsonSafely(dynamic jsonValue) {
+    if (jsonValue == null) return null;
+
+    if (jsonValue is Map<String, dynamic>) {
+      return jsonValue;
+    }
+
+    if (jsonValue is String) {
+      try {
+        return jsonDecode(jsonValue) as Map<String, dynamic>;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    return null;
   }
 
   bool get isDraft => status == 'draft';
@@ -73,6 +100,7 @@ class Application {
   bool get isApproved => status == 'approved';
   bool get isRejected => status == 'rejected';
   bool get isInfoRequested => status == 'info_requested';
+  bool get hasLicense => licenseNumber != null && licenseNumber!.isNotEmpty;
 
   String get statusDisplay {
     switch (status) {
@@ -110,5 +138,20 @@ class Application {
       default:
         return const Color(0xFF64748B);
     }
+  }
+
+  String get formattedSubmittedDate {
+    if (submittedAt == null) return 'Not submitted';
+    return DateFormat('dd MMM yyyy, HH:mm').format(submittedAt!);
+  }
+
+  String get formattedReviewedDate {
+    if (reviewedAt == null) return 'Not reviewed';
+    return DateFormat('dd MMM yyyy, HH:mm').format(reviewedAt!);
+  }
+
+  String get formattedLicenseIssuedDate {
+    if (licenseIssuedAt == null) return 'Not issued';
+    return DateFormat('dd MMM yyyy').format(licenseIssuedAt!);
   }
 }
