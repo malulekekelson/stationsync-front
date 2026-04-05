@@ -22,6 +22,12 @@ class Application {
   final String? licenseNumber;
   final DateTime? licenseIssuedAt;
 
+  // Additional fields for review history
+  final String? applicantName;
+  final String? applicantEmail;
+  final String? applicantCompany;
+  final String? officerName;
+
   Application({
     required this.id,
     required this.userId,
@@ -41,20 +47,24 @@ class Application {
     required this.updatedAt,
     this.licenseNumber,
     this.licenseIssuedAt,
+    this.applicantName,
+    this.applicantEmail,
+    this.applicantCompany,
+    this.officerName,
   });
 
   factory Application.fromJson(Map<String, dynamic> json) {
     return Application(
-      id: json['id'],
-      userId: json['user_id'],
-      licenseType: json['license_type'],
+      id: json['id'] ?? '',
+      userId: json['user_id'] ?? '',
+      licenseType: json['license_type'] ?? '',
       companyDetails: json['company_details'] != null
           ? _parseJsonSafely(json['company_details'])
           : null,
       siteDetails: json['site_details'] != null
           ? _parseJsonSafely(json['site_details'])
           : null,
-      status: json['status'],
+      status: json['status'] ?? 'draft',
       siteName: json['site_name'],
       physicalAddress: json['physical_address'],
       gpsCoordinates: json['gps_coordinates'],
@@ -67,12 +77,20 @@ class Application {
       submittedAt: json['submitted_at'] != null
           ? DateTime.parse(json['submitted_at'])
           : null,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : DateTime.now(),
       licenseNumber: json['license_number'],
       licenseIssuedAt: json['license_issued_at'] != null
           ? DateTime.parse(json['license_issued_at'])
           : null,
+      applicantName: json['applicant_name'],
+      applicantEmail: json['applicant_email'],
+      applicantCompany: json['applicant_company'],
+      officerName: json['officer_name'],
     );
   }
 

@@ -63,16 +63,18 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
 
       print('Review History Response: $response');
 
+      // Safely parse history
+      final historyList = response['history'] as List? ?? [];
+
       setState(() {
-        _history = (response['history'] as List)
-            .map((json) => Application.fromJson(json))
+        _history = historyList
+            .map((json) => Application.fromJson(json as Map<String, dynamic>))
             .toList();
-        _stats = response['stats'] ??
-            {
-              'total': _history.length,
-              'approved': _history.where((a) => a.status == 'approved').length,
-              'rejected': _history.where((a) => a.status == 'rejected').length,
-            };
+        _stats = {
+          'total': _history.length,
+          'approved': _history.where((a) => a.status == 'approved').length,
+          'rejected': _history.where((a) => a.status == 'rejected').length,
+        };
       });
     } catch (e) {
       print('Error loading history: $e');
@@ -286,9 +288,6 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
   }
 
   Widget _buildHistoryCard(Application app) {
-    // Get officer name from the data if available
-    final officerName = (app as dynamic).officer_name ?? 'Unknown Officer';
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -336,7 +335,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      app.companyDetails?['company_name'] ?? 'Unknown Company',
+                      app.applicantCompany ??
+                          app.companyDetails?['company_name'] ??
+                          'Unknown',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppColors.textHint,
@@ -355,7 +356,7 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      'Reviewed by: $officerName',
+                      'Reviewed by: ${app.officerName ?? 'Unknown'}',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppColors.textHint,
@@ -376,7 +377,9 @@ class _ReviewHistoryScreenState extends State<ReviewHistoryScreen> {
                   ),
                 ],
               ),
-              if (app.rejectedReason != null && app.status == 'rejected')
+              if (app.rejectedReason != null &&
+                  app.rejectedReason!.isNotEmpty &&
+                  app.status == 'rejected')
                 Container(
                   margin: const EdgeInsets.only(top: 8),
                   padding: const EdgeInsets.all(8),
