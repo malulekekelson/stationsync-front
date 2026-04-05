@@ -43,6 +43,24 @@ class _NewApplicationStep2State extends State<NewApplicationStep2> {
   Future<void> _saveAndContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // FIXED: Validate at least one director
+    if (_directors.isEmpty) {
+      _showError('Please add at least one director');
+      return;
+    }
+
+    // FIXED: Validate all directors have name and ID
+    for (int i = 0; i < _directors.length; i++) {
+      if (_directors[i]['name']?.isEmpty ?? true) {
+        _showError('Please enter name for director ${i + 1}');
+        return;
+      }
+      if (_directors[i]['id_number']?.isEmpty ?? true) {
+        _showError('Please enter ID number for director ${i + 1}');
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {

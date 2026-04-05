@@ -46,15 +46,19 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
     }
   }
 
+  // FIXED: Better handling of risk readiness response
   Future<void> _checkRiskReadiness() async {
     setState(() => _isChecking = true);
 
     try {
       final riskData = await _apiClient.getRiskReadiness(widget.applicationId);
 
-      if (riskData['overall_score'] > 20) {
-        _showRiskWarning(riskData);
-      } else {
+      print('Risk Readiness Response: $riskData');
+
+      // Check if the response indicates readiness
+      if (riskData['is_ready'] == true ||
+          (riskData['overall_score'] != null &&
+              riskData['overall_score'] <= 20)) {
         // Proceed to submit screen
         if (mounted) {
           Navigator.push(
@@ -67,15 +71,39 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
             ),
           );
         }
+      } else {
+        // Show detailed warning with all missing items
+        _showRiskWarning(riskData);
       }
     } catch (e) {
-      _showError('Failed to check readiness. Please try again.');
+      print('Risk Readiness Error: $e');
+      String errorMessage = 'Failed to check readiness. ';
+
+      if (e.toString().contains('director')) {
+        errorMessage = 'Please add at least one director in Company Details';
+      } else if (e.toString().contains('document')) {
+        errorMessage = 'Please upload all required documents';
+      } else if (e.toString().contains('approval')) {
+        errorMessage = 'Please complete all approvals in Pre-Qualification';
+      } else {
+        errorMessage =
+            'Please complete all required fields before submitting. Make sure you have:\n\n• At least 1 director\n• All company details\n• All site details\n• All required documents';
+      }
+
+      _showError(errorMessage);
     } finally {
       if (mounted) setState(() => _isChecking = false);
     }
   }
 
   void _showRiskWarning(Map<String, dynamic> riskData) {
+    final missingFields = riskData['missing_fields'] as List? ?? [];
+    final missingDocs = riskData['missing_documents'] as List? ?? [];
+    final missingApprovals = riskData['missing_approvals'] as List? ?? [];
+    final score = riskData['overall_score'] ?? 0;
+    final message =
+        riskData['message'] ?? 'Please complete all required information';
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -84,7 +112,7 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
           children: [
             Icon(Icons.warning_amber, color: AppColors.warning),
             const SizedBox(width: 8),
-            const Text('Risk Readiness Issues'),
+            const Text('Application Not Ready'),
           ],
         ),
         content: SingleChildScrollView(
@@ -95,99 +123,120 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
+                  color: score > 50
+                      ? AppColors.error.withOpacity(0.1)
+                      : AppColors.warning.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
                     Text(
-                      'Risk Score: ${riskData['overall_score']}%',
+                      'Readiness Score: $score%',
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.warning,
+                        color: score > 50 ? AppColors.error : AppColors.warning,
                       ),
                     ),
                     const Spacer(),
                     Text(
-                      riskData['overall_score'] > 50
-                          ? 'High Risk'
-                          : 'Medium Risk',
+                      score > 50 ? 'High Risk' : 'Medium Risk',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: AppColors.warning,
+                        color: score > 50 ? AppColors.error : AppColors.warning,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              if (riskData['missing_fields'] != null &&
-                  (riskData['missing_fields'] as List).isNotEmpty) ...[
+              Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Missing Fields
+              if (missingFields.isNotEmpty) ...[
                 Text(
-                  'Missing Required Fields:',
+                  '⚠️ Missing Required Fields:',
                   style: GoogleFonts.inter(
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
+                    color: AppColors.error,
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...(riskData['missing_fields'] as List).map((field) => Padding(
+                ...missingFields.map((field) => Padding(
                       padding: const EdgeInsets.only(left: 16, bottom: 4),
                       child: Row(
                         children: [
                           Icon(Icons.error_outline,
-                              size: 16, color: AppColors.error),
+                              size: 14, color: AppColors.error),
                           const SizedBox(width: 8),
-                          Text(field),
+                          Expanded(
+                              child: Text(field,
+                                  style: GoogleFonts.inter(fontSize: 12))),
                         ],
                       ),
                     )),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
               ],
-              if (riskData['missing_documents'] != null &&
-                  (riskData['missing_documents'] as List).isNotEmpty) ...[
+
+              // Missing Documents
+              if (missingDocs.isNotEmpty) ...[
                 Text(
-                  'Missing Required Documents:',
+                  '📄 Missing Required Documents:',
                   style: GoogleFonts.inter(
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
+                    color: AppColors.warning,
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...(riskData['missing_documents'] as List).map((doc) => Padding(
+                ...missingDocs.map((doc) => Padding(
                       padding: const EdgeInsets.only(left: 16, bottom: 4),
                       child: Row(
                         children: [
                           Icon(Icons.attach_file,
-                              size: 16, color: AppColors.error),
+                              size: 14, color: AppColors.warning),
                           const SizedBox(width: 8),
-                          Text(doc),
+                          Expanded(
+                              child: Text(doc,
+                                  style: GoogleFonts.inter(fontSize: 12))),
                         ],
                       ),
                     )),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
               ],
-              if (riskData['incomplete_zoning'] == true) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.location_off, color: AppColors.error),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Zoning compliance not verified',
-                          style: GoogleFonts.inter(
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
-                    ],
+
+              // Missing Approvals
+              if (missingApprovals.isNotEmpty) ...[
+                Text(
+                  '✅ Missing Approvals:',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.info,
                   ),
                 ),
+                const SizedBox(height: 8),
+                ...missingApprovals.map((approval) => Padding(
+                      padding: const EdgeInsets.only(left: 16, bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle_outline,
+                              size: 14, color: AppColors.info),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: Text(approval,
+                                  style: GoogleFonts.inter(fontSize: 12))),
+                        ],
+                      ),
+                    )),
               ],
             ],
           ),
@@ -346,11 +395,12 @@ class _NewApplicationStep6State extends State<NewApplicationStep6> {
   String _buildCompanyDetails() {
     final details = _application?.companyDetails;
     if (details == null) return 'No data';
+    final directors = details['directors'] as List? ?? [];
     return '''
 Company: ${details['company_name'] ?? 'N/A'}
 Registration: ${details['registration_number'] ?? 'N/A'}
 B-BBEE: ${details['bee_status'] ?? 'N/A'}
-Directors: ${(details['directors'] as List?)?.length ?? 0}
+Directors: ${directors.length}
 ''';
   }
 

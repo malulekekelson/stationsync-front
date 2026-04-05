@@ -7,7 +7,6 @@ import 'screens/auth/register_screen.dart';
 import 'screens/auth/change_password_screen.dart';
 import 'screens/applicant/dashboard.dart';
 import 'screens/applicant/application_detail.dart';
-import 'screens/applicant/compliance_dashboard.dart';
 import 'screens/applicant/site_detail_screen.dart';
 import 'screens/applicant/renewal_workflow.dart';
 import 'screens/applicant/application/new_application_step1.dart';

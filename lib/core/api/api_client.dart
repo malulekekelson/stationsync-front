@@ -112,6 +112,12 @@ class ApiClient {
     return response.data;
   }
 
+  // NEW: Delete application
+  Future<Map<String, dynamic>> deleteApplication(String id) async {
+    final response = await _dio.delete('/api/applications/$id');
+    return response.data;
+  }
+
   Future<Map<String, dynamic>> submitApplication(String id) async {
     final response = await _dio.post('/api/applications/$id/submit');
     return response.data;
@@ -154,52 +160,60 @@ class ApiClient {
     });
   }
 
-// Get risk readiness
+  // FIXED: Get risk readiness - handles non-200 responses
   Future<Map<String, dynamic>> getRiskReadiness(String applicationId) async {
-    final response =
-        await _dio.post('/api/applications/$applicationId/risk-readiness');
-    return response.data;
+    try {
+      final response =
+          await _dio.post('/api/applications/$applicationId/risk-readiness');
+      return response.data;
+    } on DioException catch (e) {
+      // If the response has data, return it (even if status code is not 200)
+      if (e.response?.data != null) {
+        return e.response?.data as Map<String, dynamic>;
+      }
+      rethrow;
+    }
   }
 
-// Get sites list
+  // Get sites list
   Future<List<dynamic>> getSites() async {
     final response = await _dio.get('/api/sites');
     return response.data['sites'];
   }
 
-// Get site details
+  // Get site details
   Future<Map<String, dynamic>> getSite(String siteId) async {
     final response = await _dio.get('/api/sites/$siteId');
     return response.data;
   }
 
-// Create inspection
+  // Create inspection
   Future<Map<String, dynamic>> createInspection(
       Map<String, dynamic> data) async {
     final response = await _dio.post('/api/inspections', data: data);
     return response.data;
   }
 
-// Create renewal
+  // Create renewal
   Future<Map<String, dynamic>> createRenewal(String siteId) async {
     final response =
         await _dio.post('/api/renewals', data: {'site_id': siteId});
     return response.data;
   }
 
-// Get expiring licenses
+  // Get expiring licenses
   Future<List<dynamic>> getExpiringLicenses() async {
     final response = await _dio.get('/api/compliance/expiring');
     return response.data['expiring'];
   }
 
-// Get pending renewals (officer)
+  // Get pending renewals (officer)
   Future<List<dynamic>> getPendingRenewals() async {
     final response = await _dio.get('/api/renewals/pending');
     return response.data['renewals'];
   }
 
-// Approve renewal (officer)
+  // Approve renewal (officer)
   Future<void> approveRenewal(String renewalId, String newExpiryDate) async {
     await _dio.post('/api/renewals/$renewalId/approve', data: {
       'new_expiry_date': newExpiryDate,

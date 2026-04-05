@@ -5,6 +5,11 @@ import '../../core/constants/app_colors.dart';
 import '../../models/application.dart';
 import '../../models/document.dart';
 import '../../widgets/common/status_badge.dart';
+import 'application/new_application_step2.dart';
+import 'application/new_application_step3.dart';
+import 'application/new_application_step4.dart';
+import 'application/new_application_step5.dart';
+import 'application/new_application_step6.dart';
 
 class ApplicationDetailScreen extends StatefulWidget {
   final String applicationId;
@@ -45,6 +50,144 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     }
   }
 
+  // NEW: Delete application
+  Future<void> _deleteApplication() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Application'),
+        content: const Text(
+          'Are you sure you want to delete this application? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        // Delete all documents first
+        for (final doc in _documents) {
+          await _apiClient.deleteDocument(doc.id);
+        }
+        // Delete application
+        await _apiClient.deleteApplication(widget.applicationId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Application deleted successfully'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  // NEW: Edit draft application
+  void _editApplication() {
+    if (_application == null) return;
+
+    final currentStep = _getCurrentStep();
+
+    switch (currentStep) {
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NewApplicationStep2(
+              applicationId: _application!.id,
+              licenseType: _application!.licenseType,
+            ),
+          ),
+        ).then((_) => _loadData());
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NewApplicationStep3(
+              applicationId: _application!.id,
+              licenseType: _application!.licenseType,
+            ),
+          ),
+        ).then((_) => _loadData());
+        break;
+      case 4:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NewApplicationStep4(
+              applicationId: _application!.id,
+              licenseType: _application!.licenseType,
+            ),
+          ),
+        ).then((_) => _loadData());
+        break;
+      case 5:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NewApplicationStep5(
+              applicationId: _application!.id,
+              licenseType: _application!.licenseType,
+            ),
+          ),
+        ).then((_) => _loadData());
+        break;
+      case 6:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NewApplicationStep6(
+              applicationId: _application!.id,
+              licenseType: _application!.licenseType,
+            ),
+          ),
+        ).then((_) => _loadData());
+        break;
+      default:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NewApplicationStep2(
+              applicationId: _application!.id,
+              licenseType: _application!.licenseType,
+            ),
+          ),
+        ).then((_) => _loadData());
+    }
+  }
+
+  int _getCurrentStep() {
+    if (_application == null) return 2;
+
+    // Check which step was last completed
+    if (_application!.companyDetails == null) return 2;
+    if (_application!.siteDetails == null) return 3;
+    // Check if documents are uploaded
+    if (_documents.isEmpty) return 4;
+    return 6;
+  }
+
   Future<void> _downloadDocument(String documentId, String fileName) async {
     try {
       final fileData = await _apiClient.getDocument(documentId);
@@ -64,6 +207,22 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Application Details'),
+        actions: [
+          // NEW: Edit button for draft applications
+          if (_application != null && _application!.isDraft)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: _editApplication,
+              tooltip: 'Edit Draft',
+            ),
+          // NEW: Delete button for draft applications
+          if (_application != null && _application!.isDraft)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.error),
+              onPressed: _deleteApplication,
+              tooltip: 'Delete Draft',
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -139,6 +298,31 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                   if (_documents.isNotEmpty) _buildDocumentsCard(),
                   const SizedBox(height: 12),
 
+                  // Submit Button for Drafts
+                  if (_application != null && _application!.isDraft)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NewApplicationStep6(
+                                applicationId: _application!.id,
+                                licenseType: _application!.licenseType,
+                              ),
+                            ),
+                          );
+                          if (result == true) _loadData();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                          minimumSize: const Size(double.infinity, 48),
+                        ),
+                        child: const Text('Continue Application'),
+                      ),
+                    ),
+
                   // Timeline
                   _buildTimelineCard(),
                 ],
@@ -190,7 +374,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.attach_file, size: 20, color: AppColors.primary),
+                const Icon(Icons.attach_file,
+                    size: 20, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Documents',
@@ -203,8 +388,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
             ),
             const Divider(),
             ..._documents.map((doc) => ListTile(
-                  leading:
-                      const Icon(Icons.insert_drive_file, color: AppColors.primary),
+                  leading: const Icon(Icons.insert_drive_file,
+                      color: AppColors.primary),
                   title: Text(doc.fileName),
                   subtitle: Text(doc.documentTypeDisplay),
                   trailing: IconButton(
@@ -319,18 +504,19 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
 
   String _buildCompanyDetails() {
     final details = _application?.companyDetails;
-    if (details == null) return 'No data';
+    if (details == null) return 'Not completed yet';
+    final directors = details['directors'] as List? ?? [];
     return '''
 Company: ${details['company_name'] ?? 'N/A'}
 Registration: ${details['registration_number'] ?? 'N/A'}
 B-BBEE: ${details['bee_status'] ?? 'N/A'}
-Directors: ${(details['directors'] as List?)?.length ?? 0}
+Directors: ${directors.length}
 ''';
   }
 
   String _buildSiteDetails() {
     final details = _application?.siteDetails;
-    if (details == null) return 'No data';
+    if (details == null) return 'Not completed yet';
     return '''
 Site: ${details['site_name'] ?? 'N/A'}
 Address: ${details['physical_address'] ?? 'N/A'}

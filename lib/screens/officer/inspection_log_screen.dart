@@ -24,7 +24,7 @@ class _InspectionLogScreenState extends State<InspectionLogScreen> {
   String _inspectionType = 'annual';
   bool _passed = true;
   int _riskImpact = 0;
-  List<File> _photos = [];
+  final List<File> _photos = [];
   bool _isLoading = false;
 
   Future<void> _pickImage() async {
@@ -132,7 +132,7 @@ class _InspectionLogScreenState extends State<InspectionLogScreen> {
                       ),
                       const Divider(),
                       DropdownButtonFormField<String>(
-                        value: _inspectionType,
+                        initialValue: _inspectionType,
                         decoration: const InputDecoration(
                           labelText: 'Inspection Type',
                           border: OutlineInputBorder(),
@@ -152,8 +152,9 @@ class _InspectionLogScreenState extends State<InspectionLogScreen> {
                               child: Text('Random Inspection')),
                         ],
                         onChanged: (value) {
-                          if (value != null)
+                          if (value != null) {
                             setState(() => _inspectionType = value);
+                          }
                         },
                       ),
                       const SizedBox(height: 16),
