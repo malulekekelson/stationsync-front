@@ -229,13 +229,16 @@ class ApiClient {
     return response.data['schedules'];
   }
 
-  // Update schedule status
+// Update schedule status (confirm/cancel)
   Future<void> updateScheduleStatus(String scheduleId, String status,
       {String? assignedTo}) async {
-    await _dio.put('/api/inspections/schedule/$scheduleId/confirm', data: {
-      'status': status,
-      'assigned_to': assignedTo,
-    });
+    await _dio.put(
+      '/api/inspections/schedule/$scheduleId/confirm',
+      data: {
+        'status': status,
+        'assigned_to': assignedTo,
+      },
+    );
   }
 
   // Request additional documents

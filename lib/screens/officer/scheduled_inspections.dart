@@ -32,6 +32,9 @@ class _ScheduledInspectionsScreenState
         _schedules = schedules;
       });
       print('Loaded ${_schedules.length} scheduled inspections');
+      for (var s in _schedules) {
+        print('Schedule ID: ${s['id']}, Status: ${s['status']}');
+      }
     } catch (e) {
       print('Error loading schedules: $e');
     } finally {
@@ -40,10 +43,14 @@ class _ScheduledInspectionsScreenState
   }
 
   Future<void> _updateStatus(String scheduleId, String status) async {
+    print('Updating schedule: id=$scheduleId, status=$status');
+
     setState(() => _actionInProgress = scheduleId);
 
     try {
       await _apiClient.updateScheduleStatus(scheduleId, status);
+
+      print('Update successful');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -62,8 +69,9 @@ class _ScheduledInspectionsScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Failed to update: $e'),
-              backgroundColor: AppColors.error),
+            content: Text('Failed to update: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -114,8 +122,12 @@ class _ScheduledInspectionsScreenState
                   itemCount: _schedules.length,
                   itemBuilder: (context, index) {
                     final schedule = _schedules[index];
-                    final isProcessing = _actionInProgress == schedule['id'];
+                    final scheduleId =
+                        schedule['id']; // This should be the UUID
+                    final isProcessing = _actionInProgress == scheduleId;
                     final status = schedule['status'];
+
+                    print('Building card for schedule: $scheduleId');
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -229,7 +241,7 @@ class _ScheduledInspectionsScreenState
                                       onPressed: isProcessing
                                           ? null
                                           : () => _updateStatus(
-                                              schedule['id'], 'confirmed'),
+                                              scheduleId, 'confirmed'),
                                       icon: isProcessing
                                           ? const SizedBox(
                                               width: 20,
@@ -250,7 +262,7 @@ class _ScheduledInspectionsScreenState
                                       onPressed: isProcessing
                                           ? null
                                           : () => _updateStatus(
-                                              schedule['id'], 'cancelled'),
+                                              scheduleId, 'cancelled'),
                                       icon: isProcessing
                                           ? const SizedBox(
                                               width: 20,
