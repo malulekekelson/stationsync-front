@@ -37,6 +37,10 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
           _scheduledInspections = schedules;
         });
       }
+      print('Loaded ${schedules.length} scheduled inspections');
+      for (var s in schedules) {
+        print('  - ${s['site_name']}: ${s['status']}');
+      }
     } catch (e) {
       debugPrint('Error loading scheduled inspections: $e');
     }
@@ -145,6 +149,8 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
   }
 
   Widget _buildScheduledInspectionsCard() {
+    if (_scheduledInspections.isEmpty) return const SizedBox.shrink();
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -166,10 +172,14 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                 leading: Icon(
                   schedule['status'] == 'confirmed'
                       ? Icons.check_circle
-                      : Icons.pending,
+                      : schedule['status'] == 'cancelled'
+                          ? Icons.cancel
+                          : Icons.pending,
                   color: schedule['status'] == 'confirmed'
                       ? AppColors.success
-                      : AppColors.warning,
+                      : schedule['status'] == 'cancelled'
+                          ? AppColors.error
+                          : AppColors.warning,
                 ),
                 title: Text(
                   schedule['site_name'] ?? 'Unknown Site',
@@ -182,12 +192,40 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                   children: [
                     Text(
                       'Date: ${_formatDate(schedule['scheduled_date'])}',
+                      style: GoogleFonts.inter(fontSize: 13),
                     ),
                     Text(
                       'Type: ${schedule['inspection_type'] ?? 'N/A'}',
+                      style: GoogleFonts.inter(fontSize: 13),
                     ),
-                    Text(
-                      'Status: ${(schedule['status'] ?? 'pending').toString().toUpperCase()}',
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: schedule['status'] == 'confirmed'
+                            ? AppColors.success.withOpacity(0.1)
+                            : schedule['status'] == 'cancelled'
+                                ? AppColors.error.withOpacity(0.1)
+                                : AppColors.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        (schedule['status'] ?? 'pending')
+                            .toString()
+                            .toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: schedule['status'] == 'confirmed'
+                              ? AppColors.success
+                              : schedule['status'] == 'cancelled'
+                                  ? AppColors.error
+                                  : AppColors.warning,
+                        ),
+                      ),
                     ),
                   ],
                 ),

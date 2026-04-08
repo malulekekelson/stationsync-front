@@ -89,7 +89,7 @@ class _ScheduleInspectionScreenState extends State<ScheduleInspectionScreen> {
 
             // Inspection Type
             DropdownButtonFormField<String>(
-              initialValue: _inspectionType,
+              value: _inspectionType,
               decoration: const InputDecoration(
                   labelText: 'Inspection Type', border: OutlineInputBorder()),
               items: const [

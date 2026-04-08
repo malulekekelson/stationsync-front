@@ -45,7 +45,6 @@ class _ScheduledInspectionsScreenState
     try {
       await _apiClient.updateScheduleStatus(scheduleId, status);
 
-      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -96,9 +95,16 @@ class _ScheduledInspectionsScreenState
                           size: 64, color: AppColors.textHint),
                       const SizedBox(height: 16),
                       Text(
-                        'No scheduled inspections',
+                        'No pending inspection requests',
                         style: GoogleFonts.inter(
                             fontSize: 16, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'When applicants request inspections, they will appear here',
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppColors.textHint),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -279,7 +285,7 @@ class _ScheduledInspectionsScreenState
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        'Inspection confirmed. Please prepare for inspection.',
+                                        'Inspection confirmed. The applicant has been notified.',
                                         style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color: AppColors.success),
@@ -303,7 +309,7 @@ class _ScheduledInspectionsScreenState
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        'Inspection cancelled. Please contact the officer.',
+                                        'Inspection cancelled. The applicant has been notified.',
                                         style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color: AppColors.error),
