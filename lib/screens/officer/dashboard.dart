@@ -3,13 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_client.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/application.dart';
+import '../../models/site.dart';
 import '../../widgets/common/status_badge.dart';
 import 'review_application.dart';
 import 'review_history.dart';
 import 'inspection_log_screen.dart';
 import 'scheduled_inspections.dart';
 import 'pending_renewals.dart';
-import '../../models/site.dart';
 
 class OfficerDashboard extends StatefulWidget {
   const OfficerDashboard({super.key});
@@ -21,6 +21,7 @@ class OfficerDashboard extends StatefulWidget {
 class _OfficerDashboardState extends State<OfficerDashboard> {
   final _apiClient = ApiClient();
   List<Application> _applications = [];
+  List<dynamic> _allSites = [];
   bool _isLoading = true;
   String? _userName;
   int _pendingCount = 0;
@@ -42,8 +43,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
       });
       await _loadApplications();
       await _loadCounts();
+      await _loadAllSites();
     } catch (e) {
-      // Handle error
+      print('Error loading data: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -57,7 +59,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
         _pendingCount = _applications.length;
       });
     } catch (e) {
-      // Handle error
+      print('Error loading applications: $e');
     }
   }
 
@@ -73,7 +75,19 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
         _scheduledInspectionsCount = inspections.length;
       });
     } catch (e) {
-      // Handle error
+      print('Error loading counts: $e');
+    }
+  }
+
+  Future<void> _loadAllSites() async {
+    try {
+      final sites = await _apiClient.getSites();
+      setState(() {
+        _allSites = sites;
+      });
+      print('Loaded ${_allSites.length} sites for inspection');
+    } catch (e) {
+      print('Error loading sites: $e');
     }
   }
 
@@ -81,6 +95,86 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
     await _apiClient.logout();
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  Future<void> _showSitesForInspection() async {
+    try {
+      // Refresh sites first
+      await _loadAllSites();
+
+      print('Sites available: ${_allSites.length}');
+
+      if (_allSites.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'No active sites found. Please approve applications first.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Select Site for Inspection'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _allSites.length,
+              itemBuilder: (context, index) {
+                final site = _allSites[index];
+                return ListTile(
+                  leading:
+                      const Icon(Icons.location_on, color: AppColors.primary),
+                  title: Text(site['site_name'] ?? 'Unknown Site'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(site['physical_address'] ?? 'No address'),
+                      if (site['owner_name'] != null)
+                        Text(
+                          'Owner: ${site['owner_name']}',
+                          style: GoogleFonts.inter(
+                              fontSize: 11, color: AppColors.textHint),
+                        ),
+                    ],
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => InspectionLogScreen(
+                          site: Site.fromJson(site),
+                        ),
+                      ),
+                    ).then((_) => _loadAllSites());
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      print('Error showing sites: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Failed to load sites: $e'),
+            backgroundColor: AppColors.error),
+      );
     }
   }
 
@@ -109,25 +203,22 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
       ),
       drawer: _buildDrawer(),
       body: RefreshIndicator(
-        onRefresh: _loadApplications,
+        onRefresh: () async {
+          await _loadApplications();
+          await _loadCounts();
+          await _loadAllSites();
+        },
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Card
               _buildWelcomeCard(),
               const SizedBox(height: 16),
-
-              // Quick Stats Row
               _buildStatsRow(),
               const SizedBox(height: 24),
-
-              // Quick Actions Grid
               _buildQuickActionsGrid(),
               const SizedBox(height: 24),
-
-              // Pending Applications Section
               _buildPendingApplicationsSection(),
             ],
           ),
@@ -162,17 +253,14 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Welcome back,',
-                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
-                ),
+                Text('Welcome,',
+                    style: GoogleFonts.inter(color: Colors.white70)),
                 Text(
                   _userName?.split(' ').first ?? 'Officer',
                   style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
               ],
             ),
@@ -188,15 +276,13 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
                 Text(
                   _pendingCount.toString(),
                   style: GoogleFonts.inter(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
-                Text(
-                  'Pending',
-                  style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
-                ),
+                Text('Pending',
+                    style:
+                        GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
               ],
             ),
           ),
@@ -254,11 +340,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 4),
           ],
         ),
         child: Column(
@@ -268,14 +352,13 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
             Text(
               count.toString(),
               style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
             ),
             Text(
               title,
-              textAlign: TextAlign.center, // ✅ correct place
+              textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -291,14 +374,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Quick Actions',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        Text('Quick Actions',
+            style:
+                GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         GridView.count(
           shrinkWrap: true,
@@ -308,51 +386,29 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
           crossAxisSpacing: 12,
           childAspectRatio: 1.5,
           children: [
-            _buildActionCard(
-              'Review History',
-              Icons.history,
-              AppColors.primary,
-              () {
-                Navigator.push(
+            _buildActionCard('Review History', Icons.history, AppColors.primary,
+                () {
+              Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const ReviewHistoryScreen()),
-                );
-              },
-            ),
-            _buildActionCard(
-              'Log Inspection',
-              Icons.assignment,
-              AppColors.success,
-              () {
-                // Navigate to sites list first, then inspection log
-                _showSitesForInspection();
-              },
-            ),
-            _buildActionCard(
-              'View Renewals',
-              Icons.refresh,
-              AppColors.warning,
-              () {
-                Navigator.push(
+                      builder: (_) => const ReviewHistoryScreen()));
+            }),
+            _buildActionCard('Log Inspection', Icons.assignment,
+                AppColors.success, _showSitesForInspection),
+            _buildActionCard('View Renewals', Icons.refresh, AppColors.warning,
+                () {
+              Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const PendingRenewalsScreen()),
-                );
-              },
-            ),
+                      builder: (_) => const PendingRenewalsScreen()));
+            }),
             _buildActionCard(
-              'Inspections',
-              Icons.calendar_month,
-              AppColors.info,
-              () {
-                Navigator.push(
+                'Inspections', Icons.calendar_month, AppColors.info, () {
+              Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const ScheduledInspectionsScreen()),
-                );
-              },
-            ),
+                      builder: (_) => const ScheduledInspectionsScreen()));
+            }),
           ],
         ),
       ],
@@ -374,67 +430,13 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
           children: [
             Icon(icon, color: color, size: 32),
             const SizedBox(height: 8),
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: color,
-              ),
-            ),
+            Text(title,
+                style: GoogleFonts.inter(
+                    fontSize: 14, fontWeight: FontWeight.w500, color: color)),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _showSitesForInspection() async {
-    try {
-      final sites = await _apiClient.getSites();
-      if (sites.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No active sites found')),
-        );
-        return;
-      }
-
-      // Show dialog to select site
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Select Site'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: sites.length,
-              itemBuilder: (context, index) {
-                final site = sites[index];
-                return ListTile(
-                  title: Text(site['site_name']),
-                  subtitle: Text(site['physical_address'] ?? 'No address'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => InspectionLogScreen(
-                          site: Site.fromJson(site),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load sites: $e')),
-      );
-    }
   }
 
   Widget _buildPendingApplicationsSection() {
@@ -444,21 +446,11 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Pending Applications',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
+            Text('Pending Applications',
+                style: GoogleFonts.inter(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
             TextButton(
-              onPressed: () {
-                // Refresh
-                _loadApplications();
-              },
-              child: const Text('Refresh'),
-            ),
+                onPressed: _loadApplications, child: const Text('Refresh')),
           ],
         ),
         const SizedBox(height: 12),
@@ -471,8 +463,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: _applications.length,
                     itemBuilder: (context, index) {
-                      final app = _applications[index];
-                      return _buildApplicationCard(app);
+                      return _buildApplicationCard(_applications[index]);
                     },
                   ),
       ],
@@ -487,8 +478,7 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ReviewApplicationScreen(applicationId: app.id),
-            ),
+                builder: (_) => ReviewApplicationScreen(applicationId: app.id)),
           ).then((_) => _loadApplications());
         },
         borderRadius: BorderRadius.circular(16),
@@ -504,10 +494,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
                     child: Text(
                       'Application #${app.id.substring(0, 8)}',
                       style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textHint,
-                      ),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textHint),
                     ),
                   ),
                   StatusBadge(status: app.status),
@@ -517,17 +506,13 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
               Text(
                 app.companyDetails?['company_name'] ?? 'No Company',
                 style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                    fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
               Text(
                 app.siteDetails?['physical_address'] ?? 'No Address',
                 style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                    fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 8),
               Row(
@@ -535,24 +520,17 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
                   const Icon(Icons.business,
                       size: 14, color: AppColors.textHint),
                   const SizedBox(width: 4),
-                  Text(
-                    app.licenseType.toUpperCase(),
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: AppColors.textHint,
-                    ),
-                  ),
+                  Text(app.licenseType.toUpperCase(),
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: AppColors.textHint)),
                   const SizedBox(width: 16),
                   const Icon(Icons.calendar_today,
                       size: 14, color: AppColors.textHint),
                   const SizedBox(width: 4),
                   Text(
-                    'Submitted: ${_formatDate(app.submittedAt ?? app.createdAt)}',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: AppColors.textHint,
-                    ),
-                  ),
+                      'Submitted: ${_formatDate(app.submittedAt ?? app.createdAt)}',
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: AppColors.textHint)),
                 ],
               ),
             ],
@@ -570,14 +548,11 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
         children: [
           Icon(Icons.check_circle, size: 48, color: AppColors.success),
           const SizedBox(height: 12),
-          Text(
-            'No pending applications',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-          ),
+          Text('No pending applications',
+              style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -596,21 +571,14 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
                 children: [
                   const Icon(Icons.gavel, size: 48, color: Colors.white),
                   const SizedBox(height: 12),
-                  Text(
-                    _userName ?? 'Officer',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    'DMRE Officer',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
-                  ),
+                  Text(_userName ?? 'Officer',
+                      style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  Text('DMRE Officer',
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: Colors.white70)),
                 ],
               ),
             ),
@@ -626,10 +594,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const ReviewHistoryScreen()),
-                );
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ReviewHistoryScreen()));
               },
             ),
             ListTile(
@@ -638,10 +605,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const PendingRenewalsScreen()),
-                );
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PendingRenewalsScreen()));
               },
             ),
             ListTile(
@@ -650,10 +616,9 @@ class _OfficerDashboardState extends State<OfficerDashboard> {
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const ScheduledInspectionsScreen()),
-                );
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ScheduledInspectionsScreen()));
               },
             ),
             const Divider(),

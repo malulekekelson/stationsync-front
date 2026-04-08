@@ -15,9 +15,11 @@ class ComplianceDashboard extends StatefulWidget {
 
 class _ComplianceDashboardState extends State<ComplianceDashboard> {
   final _apiClient = ApiClient();
+
   List<Site> _sites = [];
   List<Site> _expiringSites = [];
   List<dynamic> _scheduledInspections = [];
+
   bool _isLoading = true;
   int _expiringCount = 0;
 
@@ -36,24 +38,27 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
         });
       }
     } catch (e) {
-      // Handle error
+      debugPrint('Error loading scheduled inspections: $e');
     }
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
     try {
       final sitesData = await _apiClient.getSites();
-      setState(() {
-        _sites = sitesData.map((json) => Site.fromJson(json)).toList();
-      });
-
       final expiringData = await _apiClient.getExpiringLicenses();
-      setState(() {
-        _expiringSites =
-            expiringData.map((json) => Site.fromJson(json)).toList();
-        _expiringCount = _expiringSites.length;
-      });
+
+      if (mounted) {
+        setState(() {
+          _sites = sitesData.map((json) => Site.fromJson(json)).toList();
+          _expiringSites =
+              expiringData.map((json) => Site.fromJson(json)).toList();
+          _expiringCount = _expiringSites.length;
+        });
+      }
 
       await _loadScheduledInspections();
     } catch (e) {
@@ -66,7 +71,9 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -84,13 +91,16 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                   itemCount: _expiringSites.length,
                   itemBuilder: (context, index) {
                     final site = _expiringSites[index];
+
                     return ListTile(
                       leading: const Icon(
                         Icons.warning_amber,
                         color: AppColors.warning,
                       ),
                       title: Text(site.siteName),
-                      subtitle: Text('Expires in ${site.daysUntilExpiry} days'),
+                      subtitle: Text(
+                        'Expires in ${site.daysUntilExpiry} days',
+                      ),
                       trailing: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
@@ -99,7 +109,7 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                             MaterialPageRoute(
                               builder: (_) => RenewalWorkflow(site: site),
                             ),
-                          );
+                          ).then((_) => _loadData());
                         },
                         child: const Text('Renew'),
                       ),
@@ -113,6 +123,78 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  String _formatDate(dynamic dateValue) {
+    if (dateValue == null) {
+      return 'N/A';
+    }
+
+    if (dateValue is DateTime) {
+      return '${dateValue.day}/${dateValue.month}/${dateValue.year}';
+    }
+
+    try {
+      final parsedDate = DateTime.parse(dateValue.toString());
+      return '${parsedDate.day}/${parsedDate.month}/${parsedDate.year}';
+    } catch (e) {
+      return dateValue.toString();
+    }
+  }
+
+  Widget _buildScheduledInspectionsCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your Scheduled Inspections',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Divider(),
+            ..._scheduledInspections.map(
+              (schedule) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  schedule['status'] == 'confirmed'
+                      ? Icons.check_circle
+                      : Icons.pending,
+                  color: schedule['status'] == 'confirmed'
+                      ? AppColors.success
+                      : AppColors.warning,
+                ),
+                title: Text(
+                  schedule['site_name'] ?? 'Unknown Site',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Date: ${_formatDate(schedule['scheduled_date'])}',
+                    ),
+                    Text(
+                      'Type: ${schedule['inspection_type'] ?? 'N/A'}',
+                    ),
+                    Text(
+                      'Status: ${(schedule['status'] ?? 'pending').toString().toUpperCase()}',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -146,11 +228,11 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                     ),
                     child: Text(
                       '$_expiringCount',
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -161,45 +243,16 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(),
+              )
             : _sites.isEmpty && _scheduledInspections.isEmpty
                 ? _buildEmptyState()
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
                       if (_scheduledInspections.isNotEmpty)
-                        Card(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Scheduled Inspections',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const Divider(),
-                                ..._scheduledInspections.map(
-                                  (schedule) => ListTile(
-                                    leading: const Icon(
-                                      Icons.calendar_today,
-                                      color: AppColors.warning,
-                                    ),
-                                    title: Text(schedule['site_name']),
-                                    subtitle: Text(
-                                      '${schedule['inspection_type']} - ${schedule['scheduled_date'].toString().split('T')[0]}',
-                                    ),
-                                    trailing: const Icon(Icons.pending),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        _buildScheduledInspectionsCard(),
                       ..._sites.map((site) => _buildSiteCard(site)),
                     ],
                   ),
@@ -219,6 +272,7 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           Navigator.push(
             context,
@@ -227,7 +281,6 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
             ),
           ).then((_) => _loadData());
         },
-        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -246,8 +299,10 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: site.riskColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -266,7 +321,11 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.location_on, size: 14, color: AppColors.textHint),
+                  const Icon(
+                    Icons.location_on,
+                    size: 14,
+                    color: AppColors.textHint,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -282,7 +341,7 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.confirmation_number,
                     size: 14,
                     color: AppColors.textHint,
@@ -296,8 +355,11 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                     ),
                   ),
                   const Spacer(),
-                  Icon(Icons.calendar_today,
-                      size: 12, color: AppColors.textHint),
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 12,
+                    color: AppColors.textHint,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     site.daysUntilExpiry,
@@ -319,7 +381,10 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                   ),
                   const SizedBox(width: 8),
                   if (site.needsInspection)
-                    _buildStatusChip('Inspection Due', AppColors.warning),
+                    _buildStatusChip(
+                      'Inspection Due',
+                      AppColors.warning,
+                    ),
                   const Spacer(),
                   if (site.isExpiringSoon && !site.isExpired)
                     TextButton.icon(
@@ -344,9 +409,9 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: site.riskScore / 100,
+                  minHeight: 4,
                   backgroundColor: Colors.grey[200],
                   color: site.riskColor,
-                  minHeight: 4,
                 ),
               ),
             ],
@@ -358,14 +423,20 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
 
   Widget _buildStatusChip(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 10, color: color),
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+        ),
       ),
     );
   }
@@ -375,7 +446,11 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.business, size: 80, color: AppColors.textHint),
+          const Icon(
+            Icons.business,
+            size: 80,
+            color: AppColors.textHint,
+          ),
           const SizedBox(height: 16),
           Text(
             'No Active Sites',
