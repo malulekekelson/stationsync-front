@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_client.dart';
@@ -20,13 +21,134 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _companyController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _otpController = TextEditingController();
+
   final _apiClient = ApiClient();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isOtpSent = false;
+  bool _isOtpVerified = false;
+  int _resendCooldown = 60;
+  Timer? _resendTimer;
+  String? _otpError;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _fullNameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _companyController.dispose();
+    _phoneController.dispose();
+    _otpController.dispose();
+    _resendTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _sendOtp() async {
+    if (_emailController.text.isEmpty) {
+      _showSnackBar('Please enter email address first', AppColors.error);
+      return;
+    }
+
+    if (!_isValidEmail(_emailController.text)) {
+      _showSnackBar('Please enter a valid email address', AppColors.error);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await _apiClient.sendOtp(
+        _emailController.text.trim(),
+        _fullNameController.text.trim().isEmpty
+            ? 'User'
+            : _fullNameController.text.trim(),
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          _isOtpSent = true;
+          _resendCooldown = 60;
+          _otpError = null;
+        });
+        _startResendTimer();
+        _showSnackBar(
+            'Verification code sent to your email', AppColors.success);
+      } else {
+        _showSnackBar(response['error'] ?? 'Failed to send verification code',
+            AppColors.error);
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', AppColors.error);
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _startResendTimer() {
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted && _resendCooldown > 0) {
+        setState(() => _resendCooldown--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  Future<void> _verifyOtp() async {
+    if (_otpController.text.isEmpty) {
+      setState(() => _otpError = 'Please enter verification code');
+      return;
+    }
+
+    if (_otpController.text.length != 6) {
+      setState(() => _otpError = 'Verification code must be 6 digits');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _otpError = null;
+    });
+
+    try {
+      final response = await _apiClient.verifyOtp(
+        _emailController.text.trim(),
+        _otpController.text.trim(),
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          _isOtpVerified = true;
+        });
+        _showSnackBar('Email verified successfully!', AppColors.success);
+      } else {
+        setState(() {
+          _otpError = response['error'] ?? 'Invalid verification code';
+        });
+        _showSnackBar(_otpError!, AppColors.error);
+      }
+    } catch (e) {
+      setState(() {
+        _otpError = 'Verification failed. Please try again.';
+      });
+      _showSnackBar(_otpError!, AppColors.error);
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_isOtpVerified) {
+      _showSnackBar('Please verify your email first', AppColors.error);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -73,6 +195,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^\s@]+@([^\s@]+\.)+[^\s@]+$').hasMatch(email);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,6 +217,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Header
                 Text(
                   'Apply for License',
                   style: GoogleFonts.inter(
@@ -108,6 +235,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
+
+                // Full Name
                 TextFormField(
                   controller: _fullNameController,
                   decoration: const InputDecoration(
@@ -118,20 +247,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       value?.isEmpty ?? true ? 'Full name required' : null,
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email Address',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Email required';
-                    if (!value!.contains('@')) return 'Invalid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+
+                // Company Name
                 TextFormField(
                   controller: _companyController,
                   decoration: const InputDecoration(
@@ -142,6 +259,138 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       value?.isEmpty ?? true ? 'Company name required' : null,
                 ),
                 const SizedBox(height: 16),
+
+                // Email with OTP Send Button
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    suffixIcon: _isOtpSent && _isOtpVerified
+                        ? Icon(Icons.verified, color: AppColors.success)
+                        : IconButton(
+                            icon: Icon(
+                              Icons.send,
+                              color: _isOtpSent
+                                  ? AppColors.textHint
+                                  : AppColors.primary,
+                            ),
+                            onPressed: _isOtpSent ? null : _sendOtp,
+                          ),
+                  ),
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Email required';
+                    if (!value!.contains('@')) return 'Invalid email';
+                    return null;
+                  },
+                  onChanged: (_) {
+                    if (_isOtpSent) {
+                      setState(() {
+                        _isOtpSent = false;
+                        _isOtpVerified = false;
+                        _otpController.clear();
+                      });
+                    }
+                  },
+                ),
+
+                // OTP Section (only show after OTP sent)
+                if (_isOtpSent && !_isOtpVerified) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: _otpController,
+                              keyboardType: TextInputType.number,
+                              maxLength: 6,
+                              decoration: InputDecoration(
+                                labelText: 'Verification Code',
+                                prefixIcon: const Icon(Icons.pin),
+                                hintText: 'Enter 6-digit code',
+                                errorText: _otpError,
+                                counterText: '',
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Enter the 6-digit code sent to your email',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: AppColors.textHint,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: ElevatedButton(
+                          onPressed: _verifyOtp,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            minimumSize: const Size(80, 56),
+                          ),
+                          child: const Text('Verify'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _resendCooldown > 0 ? null : _sendOtp,
+                        child: Text(
+                          _resendCooldown > 0
+                              ? 'Resend in ${_resendCooldown}s'
+                              : 'Resend Code',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // Verified indicator
+                if (_isOtpVerified) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: AppColors.success.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.verified,
+                            color: AppColors.success, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Email verified successfully!',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // Phone
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
@@ -151,6 +400,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Password
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -191,6 +442,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // Confirm Password
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirm,
@@ -216,11 +469,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
+
                 LoadingButton(
                   onPressed: _register,
                   isLoading: _isLoading,
                   text: 'Create Account',
                 ),
+
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

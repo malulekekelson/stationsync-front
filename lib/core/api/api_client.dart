@@ -360,4 +360,26 @@ class ApiClient {
     final response = await _dio.get('/api/officer/all-history$query');
     return response.data;
   }
+
+// ============================================
+// OTP VERIFICATION METHODS
+// ============================================
+
+// Send OTP to email
+  Future<Map<String, dynamic>> sendOtp(String email, String fullName) async {
+    final response = await _dio.post('/api/auth/send-otp', data: {
+      'email': email,
+      'full_name': fullName,
+    });
+    return response.data;
+  }
+
+// Verify OTP
+  Future<Map<String, dynamic>> verifyOtp(String email, String otp) async {
+    final response = await _dio.post('/api/auth/verify-otp', data: {
+      'email': email,
+      'otp': otp,
+    });
+    return response.data;
+  }
 }
