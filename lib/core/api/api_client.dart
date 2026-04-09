@@ -382,4 +382,39 @@ class ApiClient {
     });
     return response.data;
   }
+
+  // ============================================
+// PROFILE METHODS
+// ============================================
+
+// Get user profile
+  Future<Map<String, dynamic>> getProfile() async {
+    final response = await _dio.get('/api/user/profile');
+    return response.data;
+  }
+
+// Update user profile
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
+    final response = await _dio.put('/api/user/profile', data: data);
+    return response.data;
+  }
+
+// Change email
+  Future<Map<String, dynamic>> changeEmail(String newEmail, String otp) async {
+    final response = await _dio.put('/api/user/change-email', data: {
+      'new_email': newEmail,
+      'otp': otp,
+    });
+    return response.data;
+  }
+
+// Update company name (officer/admin only)
+  Future<Map<String, dynamic>> updateCompanyName(
+      String userId, String companyName) async {
+    final response = await _dio.put('/api/company/update', data: {
+      'user_id': userId,
+      'company_name': companyName,
+    });
+    return response.data;
+  }
 }

@@ -8,6 +8,7 @@ import 'register_screen.dart';
 import 'change_password_screen.dart';
 import '../applicant/dashboard.dart';
 import '../officer/dashboard.dart';
+import 'package:dio/dio.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -69,7 +70,20 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else {
-        _showSnackBar(response['error'] ?? 'Login failed', AppColors.error);
+        // Show specific error message from backend
+        final errorMsg = response['error'] ?? 'Login failed';
+        _showSnackBar(errorMsg, AppColors.error);
+      }
+    } on DioException catch (e) {
+      // Handle specific Dio errors
+      if (e.response?.statusCode == 401) {
+        _showSnackBar('Invalid email or password', AppColors.error);
+      } else if (e.response?.statusCode == 429) {
+        _showSnackBar(
+            'Too many attempts. Please try again later.', AppColors.error);
+      } else {
+        _showSnackBar(
+            'Connection error. Please check your internet.', AppColors.error);
       }
     } catch (e) {
       _showSnackBar('Connection error. Please try again.', AppColors.error);

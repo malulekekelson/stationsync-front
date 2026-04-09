@@ -8,6 +8,8 @@ import '../../widgets/common/app_logo.dart';
 import 'application/new_application_step1.dart';
 import 'application_detail.dart';
 import 'compliance_dashboard.dart'; // Import Compliance Dashboard
+import 'profile_screen.dart';
+import 'help_support_screen.dart';
 
 class ApplicantDashboard extends StatefulWidget {
   const ApplicantDashboard({super.key});
@@ -516,12 +518,17 @@ class _ApplicantDashboardState extends State<ApplicantDashboard>
               onTap: () => Navigator.pop(context),
             ),
             const Divider(),
+// Replace the Profile and Help & Support ListTiles with:
+
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
-                // Navigate to profile
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
               },
             ),
             ListTile(
@@ -529,7 +536,10 @@ class _ApplicantDashboardState extends State<ApplicantDashboard>
               title: const Text('Help & Support'),
               onTap: () {
                 Navigator.pop(context);
-                // Navigate to help
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                );
               },
             ),
             const Spacer(),
