@@ -17,11 +17,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
   List<dynamic> _officers = [];
   bool _isLoading = true;
   String? _userName;
+  final ScrollController _scrollController = ScrollController(); // ADD THIS
+
+  // Add stats variables
+  int _totalApplications = 0;
+  int _approvedApplications = 0;
+  int _rejectedApplications = 0;
+  bool _isLoadingStats = true;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadApplicationStats();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -51,11 +65,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
+  Future<void> _loadApplicationStats() async {
+    setState(() => _isLoadingStats = true);
+    try {
+      final stats = await _apiClient.getAppStats();
+      setState(() {
+        _totalApplications = stats['total'] ?? 0;
+        _approvedApplications = stats['approved'] ?? 0;
+        _rejectedApplications = stats['rejected'] ?? 0;
+        _isLoadingStats = false;
+      });
+    } catch (e) {
+      print('Error loading stats: $e');
+      setState(() => _isLoadingStats = false);
+    }
+  }
+
   Future<void> _logout() async {
     await _apiClient.logout();
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
     }
+  }
+
+  void _scrollToOfficers() {
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -84,8 +122,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
       drawer: _buildDrawer(),
       body: RefreshIndicator(
-        onRefresh: _loadOfficers,
+        onRefresh: () async {
+          await _loadOfficers();
+          await _loadApplicationStats();
+        },
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,7 +136,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               _buildWelcomeCard(),
               const SizedBox(height: 16),
 
-              // Quick Actions Section - MAKE SURE THIS IS VISIBLE
+              // Quick Actions Section
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 child: Column(
@@ -152,10 +194,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             'View Officers',
                             Icons.people,
                             AppColors.info,
-                            () {
-                              // Scroll to officers section
-                              // You can add a scroll controller to scroll to officers section
-                            },
+                            _scrollToOfficers, // FIXED: Now scrolls to officers section
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -297,9 +336,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             _buildStatRow('Active Officers',
                 _officers.where((o) => o['is_active'] == 1).length),
             const Divider(),
-            _buildStatRow('Total Applications', 'Loading...'),
-            _buildStatRow('Approved Applications', 'Loading...'),
-            _buildStatRow('Rejected Applications', 'Loading...'),
+            _buildStatRow('Total Applications', _totalApplications),
+            _buildStatRow('Approved Applications', _approvedApplications),
+            _buildStatRow('Rejected Applications', _rejectedApplications),
           ],
         ),
         actions: [

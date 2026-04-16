@@ -439,6 +439,12 @@ class ApiClient {
     return response.data;
   }
 
+  // Get application statistics (admin only)
+  Future<Map<String, dynamic>> getAppStats() async {
+    final response = await _dio.get('/api/admin/stats');
+    return response.data;
+  }
+
 // Update company name (officer/admin only)
   Future<Map<String, dynamic>> updateCompanyName(
       String userId, String companyName) async {
