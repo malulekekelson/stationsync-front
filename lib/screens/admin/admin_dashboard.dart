@@ -33,7 +33,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       });
       await _loadOfficers();
     } catch (e) {
-      // Handle error
+      print('Error loading data: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -45,8 +45,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       setState(() {
         _officers = officers;
       });
+      print('Loaded ${_officers.length} officers');
     } catch (e) {
-      // Handle error
+      print('Error loading officers: $e');
     }
   }
 
@@ -77,6 +78,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
+            tooltip: 'Logout',
           ),
         ],
       ),
@@ -92,9 +94,86 @@ class _AdminDashboardState extends State<AdminDashboard> {
               _buildWelcomeCard(),
               const SizedBox(height: 16),
 
-              // Quick Actions Grid
-              _buildQuickActionsGrid(),
-              const SizedBox(height: 24),
+              // Quick Actions Section - MAKE SURE THIS IS VISIBLE
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Quick Actions',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildActionCard(
+                            'Create Officer',
+                            Icons.person_add,
+                            AppColors.success,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const CreateOfficerScreen()),
+                              ).then((_) => _loadOfficers());
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildActionCard(
+                            'Review History',
+                            Icons.history,
+                            AppColors.primary,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AllReviewHistoryScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildActionCard(
+                            'View Officers',
+                            Icons.people,
+                            AppColors.info,
+                            () {
+                              // Scroll to officers section
+                              // You can add a scroll controller to scroll to officers section
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildActionCard(
+                            'System Stats',
+                            Icons.analytics,
+                            AppColors.warning,
+                            () {
+                              _showStatsDialog();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
 
               // Officers Section
               _buildOfficersSection(),
@@ -174,79 +253,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildQuickActionsGrid() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Actions',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
-          children: [
-            _buildActionCard(
-              'Create Officer',
-              Icons.person_add,
-              AppColors.success,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const CreateOfficerScreen()),
-                ).then((_) => _loadOfficers());
-              },
-            ),
-            _buildActionCard(
-              'Review History',
-              Icons.history,
-              AppColors.primary,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const AllReviewHistoryScreen()),
-                );
-              },
-            ),
-            _buildActionCard(
-              'View All Officers',
-              Icons.people,
-              AppColors.info,
-              () {
-                // Scroll to officers section
-              },
-            ),
-            _buildActionCard(
-              'System Stats',
-              Icons.analytics,
-              AppColors.warning,
-              () {
-                // Show stats dialog
-                _showStatsDialog();
-              },
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionCard(
       String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
@@ -264,6 +276,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 fontWeight: FontWeight.w500,
                 color: color,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -330,7 +343,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 color: AppColors.textPrimary,
               ),
             ),
-            TextButton.icon(
+            ElevatedButton.icon(
               onPressed: () {
                 Navigator.push(
                   context,
@@ -340,6 +353,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add Officer'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
@@ -454,6 +471,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             },
             icon: const Icon(Icons.add),
             label: const Text('Create First Officer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+            ),
           ),
         ],
       ),
