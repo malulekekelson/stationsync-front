@@ -384,6 +384,37 @@ class ApiClient {
   }
 
   // ============================================
+// PASSWORD RESET METHODS
+// ============================================
+
+// Forgot password - request reset link
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await _dio.post('/api/auth/forgot-password', data: {
+      'email': email,
+    });
+    return response.data;
+  }
+
+// Verify reset token
+  Future<Map<String, dynamic>> verifyResetToken(String token) async {
+    final response = await _dio.post('/api/auth/verify-reset-token', data: {
+      'token': token,
+    });
+    return response.data;
+  }
+
+// Reset password with token/code
+  Future<Map<String, dynamic>> resetPassword(
+      String token, String email, String newPassword) async {
+    final response = await _dio.post('/api/auth/reset-password', data: {
+      'token': token,
+      'email': email,
+      'new_password': newPassword,
+    });
+    return response.data;
+  }
+
+  // ============================================
 // PROFILE METHODS
 // ============================================
 

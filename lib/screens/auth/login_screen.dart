@@ -9,6 +9,7 @@ import 'change_password_screen.dart';
 import '../applicant/dashboard.dart';
 import '../officer/dashboard.dart';
 import 'package:dio/dio.dart';
+import 'forgot_password_screen.dart'; // ✅ ADD THIS IMPORT
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -70,12 +71,10 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else {
-        // Show specific error message from backend
         final errorMsg = response['error'] ?? 'Login failed';
         _showSnackBar(errorMsg, AppColors.error);
       }
     } on DioException catch (e) {
-      // Handle specific Dio errors
       if (e.response?.statusCode == 401) {
         _showSnackBar('Invalid email or password', AppColors.error);
       } else if (e.response?.statusCode == 429) {
@@ -133,6 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
+
+              // EMAIL
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -141,7 +142,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
+
               const SizedBox(height: 16),
+
+              // PASSWORD
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
@@ -160,13 +164,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+
+              // ✅ ADDED HERE (correct placement)
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen()),
+                    );
+                  },
+                  child: Text(
+                    'Forgot Password?',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
+
+              // LOGIN BUTTON
               LoadingButton(
                 onPressed: _login,
                 isLoading: _isLoading,
                 text: 'Sign In',
               ),
+
               const SizedBox(height: 16),
+
+              // REGISTER
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
