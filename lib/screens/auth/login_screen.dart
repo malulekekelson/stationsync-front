@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:dio/dio.dart';
 import '../../core/api/api_client.dart';
 import '../../core/constants/app_colors.dart';
 import '../../widgets/common/app_logo.dart';
 import '../../widgets/common/loading_button.dart';
 import 'register_screen.dart';
 import 'change_password_screen.dart';
+import 'forgot_password_screen.dart';
 import '../applicant/dashboard.dart';
 import '../officer/dashboard.dart';
-import 'package:dio/dio.dart';
-import 'forgot_password_screen.dart'; // ✅ ADD THIS IMPORT
+import '../admin/admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -57,15 +58,22 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else {
           if (mounted) {
-            if (user['role'] == 'applicant') {
+            // ✅ FIXED: Check ALL roles explicitly
+            if (user['role'] == 'super_admin') {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const ApplicantDashboard()),
+                MaterialPageRoute(builder: (_) => const AdminDashboard()),
               );
-            } else {
+            } else if (user['role'] == 'officer') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const OfficerDashboard()),
+              );
+            } else {
+              // applicant or any other role
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const ApplicantDashboard()),
               );
             }
           }
@@ -165,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              // ✅ ADDED HERE (correct placement)
+              // Forgot Password Link
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
