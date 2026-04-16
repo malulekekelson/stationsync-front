@@ -29,38 +29,39 @@ class _SplashScreenState extends State<SplashScreen> {
     final apiClient = ApiClient();
     final token = await apiClient.getToken();
 
-    // Debug print
-    debugPrint('=== SPLASH SCREEN: Token exists = ${token != null} ===');
+    // Debug print to console
+    debugPrint('=== SPLASH SCREEN DEBUG ===');
+    debugPrint('Token exists: ${token != null}');
 
     if (token != null) {
       try {
         final userData = await apiClient.getCurrentUser();
         final role = userData['user']['role'] as String;
 
-        debugPrint('=== USER ROLE DETECTED: $role ===');
+        debugPrint('User role from API: "$role"');
 
         if (mounted) {
-          // IMPORTANT: Check super_admin FIRST (most specific first)
+          // IMPORTANT: Check super_admin FIRST
           if (role == 'super_admin') {
-            debugPrint('✅ Navigating to ADMIN Dashboard');
+            debugPrint('✅ NAVIGATING TO ADMIN DASHBOARD');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const AdminDashboard()),
             );
           } else if (role == 'officer') {
-            debugPrint('✅ Navigating to OFFICER Dashboard');
+            debugPrint('✅ NAVIGATING TO OFFICER DASHBOARD');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const OfficerDashboard()),
             );
           } else if (role == 'applicant') {
-            debugPrint('✅ Navigating to APPLICANT Dashboard');
+            debugPrint('✅ NAVIGATING TO APPLICANT DASHBOARD');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const ApplicantDashboard()),
             );
           } else {
-            debugPrint('⚠️ Unknown role: $role, going to login');
+            debugPrint('⚠️ Unknown role, going to login');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -68,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> {
           }
         }
       } catch (e) {
-        debugPrint('❌ Error getting user: $e');
+        debugPrint('❌ Error: $e');
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -77,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> {
         }
       }
     } else {
-      debugPrint('No token found, going to login');
+      debugPrint('No token, going to login');
       if (mounted) {
         Navigator.pushReplacement(
           context,
